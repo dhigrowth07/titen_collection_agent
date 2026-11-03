@@ -36,12 +36,17 @@ class TenantRowWidget extends StatelessWidget {
 
     final initials = tenant.initials;
     final name = tenant.name;
-    final totalAmount = tenant.amountDue;
-    final paidAmount = tenant.rentPaidAmount;
-    final remainingAmount = tenant.balancePayable > 0
-        ? tenant.balancePayable
-        : (tenant.isPaid ? 0.0 : bed.amountDue);
-    final isSettled = bed.isPaid || remainingAmount <= 0;
+    final totalAmount = bed.totalAmount;
+    final paidAmount = bed.paidAmount;
+    final isSettled = tenant.isPaid;
+    final isOverdue = tenant.isOverdue;
+    final remainingAmount = isSettled
+        ? 0.0
+        : (tenant.combinedOutstandingDue > 0
+            ? tenant.combinedOutstandingDue
+            : (bed.remainingAmount > 0
+                ? bed.remainingAmount
+                : (totalAmount - paidAmount > 0 ? totalAmount - paidAmount : 0.0)));
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -92,16 +97,35 @@ class TenantRowWidget extends StatelessWidget {
                       style: AppTextStyles.bodyMedium.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFFDC2626),
+                        color: isOverdue ? const Color(0xFFDC2626) : const Color(0xFFD97706),
                       ),
                     ),
+                    if (tenant.hasLastMonthPending) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        '${AppStrings.includesLastMonthDuePrefix}${_formatCurrency(tenant.lastMonthPendingAmount)}',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFDC2626),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: 1),
                     Text(
-                      'Total: ${_formatCurrency(totalAmount)} • Paid: ${_formatCurrency(paidAmount)}',
+                      isOverdue
+                          ? (paidAmount > 0
+                              ? 'OVERDUE • Total: ${_formatCurrency(totalAmount)} • Paid: ${_formatCurrency(paidAmount)}'
+                              : 'OVERDUE • Total: ${_formatCurrency(totalAmount)}')
+                          : (paidAmount > 0
+                              ? 'Total: ${_formatCurrency(totalAmount)} • Paid: ${_formatCurrency(paidAmount)}'
+                              : 'Total: ${_formatCurrency(totalAmount)}'),
                       style: AppTextStyles.labelSmall.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: isOverdue ? const Color(0xFFDC2626) : AppColors.textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -149,9 +173,9 @@ class TenantRowWidget extends StatelessWidget {
             )
           else
             ElevatedButton(
-              onPressed: remainingAmount > 0 ? onPayTap : null,
+              onPressed: onPayTap,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: isOverdue ? const Color(0xFFDC2626) : AppColors.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 9),

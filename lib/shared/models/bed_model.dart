@@ -17,19 +17,38 @@ class BedModel {
   });
 
   bool get isVacant => tenant == null;
-  double get totalAmount => tenant?.amountDue ?? amountDue;
+  double get totalAmount {
+    if (tenant != null) {
+      return tenant!.totalRent + tenant!.lastMonthPendingAmount;
+    }
+    return amountDue;
+  }
   double get paidAmount => tenant?.rentPaidAmount ?? 0.0;
-  double get remainingAmount => tenant?.balancePayable ?? (isPaid ? 0.0 : amountDue);
+  double get remainingAmount {
+    if (tenant != null) {
+      if (tenant!.isPaid) return 0.0;
+      return tenant!.combinedOutstandingDue > 0
+          ? tenant!.combinedOutstandingDue
+          : tenant!.dueAmount;
+    }
+    return isPaid ? 0.0 : amountDue;
+  }
 
   factory BedModel.fromJson(Map<String, dynamic> json) {
+    final tenantObj = json['tenant'] != null
+        ? TenantModel.fromJson(json['tenant'] as Map<String, dynamic>)
+        : null;
+    final rawDue = (json['amountDue'] as num?)?.toDouble() ?? 0.0;
+    final isPaidVal = json['isPaid'] as bool? ?? false;
+    final effectiveDue = tenantObj != null
+        ? (tenantObj.combinedOutstandingDue > 0 ? tenantObj.combinedOutstandingDue : tenantObj.dueAmount)
+        : rawDue;
     return BedModel(
       id: json['id'] as String? ?? '',
       bedNumber: json['bedNumber'] as int? ?? 1,
-      tenant: json['tenant'] != null
-          ? TenantModel.fromJson(json['tenant'] as Map<String, dynamic>)
-          : null,
-      amountDue: (json['amountDue'] as num?)?.toDouble() ?? 0.0,
-      isPaid: json['isPaid'] as bool? ?? false,
+      tenant: tenantObj,
+      amountDue: effectiveDue,
+      isPaid: tenantObj?.isPaid ?? isPaidVal,
     );
   }
 

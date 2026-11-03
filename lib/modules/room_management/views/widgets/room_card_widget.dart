@@ -82,15 +82,48 @@ class RoomCardWidget extends StatelessWidget {
           // Header: Room Number and Occupancy Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Room ${room.roomNumber}',
-                style: AppTextStyles.headlineMedium.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Room ${room.roomNumber}',
+                        style: AppTextStyles.headlineMedium.copyWith(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (room.adminName != null && room.adminName!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blueGrey.shade200, width: 0.8),
+                        ),
+                        child: Text(
+                          room.adminName!,
+                          style: AppTextStyles.labelSmall.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blueGrey.shade700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(

@@ -3,6 +3,7 @@ import 'package:collection_agent/core/constants/app_strings.dart';
 import 'package:collection_agent/core/network/api_client.dart';
 import 'package:collection_agent/core/utils/toast_helper.dart';
 import 'package:collection_agent/core/utils/validators.dart';
+import 'package:collection_agent/shared/models/admin_model.dart';
 import 'package:collection_agent/shared/models/bed_model.dart';
 import 'package:collection_agent/shared/models/block_model.dart';
 import 'package:collection_agent/shared/models/room_model.dart';
@@ -14,6 +15,8 @@ import 'package:collection_agent/shared/repositories/collector_repository.dart';
 class RoomManagementViewModel extends ChangeNotifier {
   final CollectorRepository _repository = CollectorRepository.instance;
 
+  List<AdminModel> _admins = [];
+  String _selectedAdminId = 'ALL';
   List<BlockModel> _allBlocks = [];
   List<BlockModel> _blocks = [];
   String _selectedBlockId = 'ALL';
@@ -36,11 +39,15 @@ class RoomManagementViewModel extends ChangeNotifier {
   // Active Tenant Details State
   TenantModel? _activeTenantForDetails;
 
-  RoomManagementViewModel() {
-    loadData();
+  RoomManagementViewModel({bool autoLoad = true}) {
+    if (autoLoad) {
+      loadData();
+    }
   }
 
   // Getters
+  List<AdminModel> get admins => _admins;
+  String get selectedAdminId => _selectedAdminId;
   List<BlockModel> get blocks => _allBlocks.isNotEmpty ? _allBlocks : _blocks;
   String get selectedBlockId => _selectedBlockId;
   List<RoomModel> get rooms => _rooms;
@@ -49,6 +56,17 @@ class RoomManagementViewModel extends ChangeNotifier {
   double get todayCollected => _todayCollected;
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
+
+  String get currentAdminName {
+    if (_selectedAdminId == 'ALL') {
+      return AppStrings.allAdmins;
+    }
+    final admin = _admins.firstWhere(
+      (a) => a.id == _selectedAdminId,
+      orElse: () => const AdminModel(id: '', name: 'Admin'),
+    );
+    return admin.name;
+  }
 
   BedModel? get activeBedForPayment => _activeBedForPayment;
   String? get activeRoomNumberForPayment => _activeRoomNumberForPayment;
@@ -102,12 +120,17 @@ class RoomManagementViewModel extends ChangeNotifier {
       final int? blockIdParam = (_selectedBlockId == 'ALL')
           ? null
           : int.tryParse(_selectedBlockId);
+      final String? adminIdParam = (_selectedAdminId == 'ALL')
+          ? null
+          : _selectedAdminId;
 
       final dashboardData = await _repository.getDashboard(
         search: _searchQuery.trim().isNotEmpty ? _searchQuery.trim() : null,
         blockId: blockIdParam,
+        adminId: adminIdParam,
       );
 
+      _admins = dashboardData.admins;
       if (_selectedBlockId == 'ALL' || _allBlocks.isEmpty) {
         _allBlocks = dashboardData.blocks;
       }
@@ -134,6 +157,14 @@ class RoomManagementViewModel extends ChangeNotifier {
     }
   }
 
+  void filterAdmin(String adminId) {
+    if (_selectedAdminId == adminId) return;
+    _selectedAdminId = adminId;
+    _selectedBlockId = 'ALL';
+    _allBlocks = [];
+    loadData();
+  }
+
   void filterBlock(String blockId) {
     if (_selectedBlockId == blockId) return;
     _selectedBlockId = blockId;
@@ -158,7 +189,12 @@ class RoomManagementViewModel extends ChangeNotifier {
     if (_paymentType == type) return;
     _paymentType = type;
     if (type == AppStrings.fullPayment && _activeBedForPayment != null) {
-      paymentAmountController.text = _activeBedForPayment!.amountDue.toStringAsFixed(0);
+      final effectiveDue = _activeBedForPayment!.remainingAmount > 0
+          ? _activeBedForPayment!.remainingAmount
+          : _activeBedForPayment!.amountDue;
+      paymentAmountController.text = effectiveDue.toStringAsFixed(
+        effectiveDue.truncateToDouble() == effectiveDue ? 0 : 2,
+      );
     } else if (type == AppStrings.partialPayment) {
       paymentAmountController.text = '';
     }
@@ -177,9 +213,30 @@ class RoomManagementViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void selectTenantForDetails(TenantModel tenant) {
+  Future<void> selectTenantForDetails(TenantModel tenant) async {
     _activeTenantForDetails = tenant;
     notifyListeners();
+
+    // Asynchronously fetch enriched payment profile from backend
+    final parsedId = tenant.userId ?? int.tryParse(tenant.id);
+    if (parsedId != null) {
+      try {
+        final enriched = await _repository.getCustomerDetails(parsedId);
+        if (enriched != null &&
+            (_activeTenantForDetails?.id == tenant.id ||
+                _activeTenantForDetails?.userId == parsedId)) {
+          _activeTenantForDetails = enriched.copyWith(
+            roomNumber: (enriched.roomNumber.isNotEmpty && enriched.roomNumber != 'Room')
+                ? enriched.roomNumber
+                : tenant.roomNumber,
+            blockName: (enriched.blockName.isNotEmpty && enriched.blockName != 'Block')
+                ? enriched.blockName
+                : tenant.blockName,
+          );
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
   }
 
   void clearActiveModals() {
@@ -205,10 +262,14 @@ class RoomManagementViewModel extends ChangeNotifier {
       return false;
     }
 
-    final totalDue = _activeBedForPayment!.amountDue;
+    final totalDue = _activeBedForPayment!.remainingAmount > 0
+        ? _activeBedForPayment!.remainingAmount
+        : _activeBedForPayment!.amountDue;
 
     if (_paymentType == AppStrings.fullPayment) {
-      paymentAmountController.text = totalDue.toStringAsFixed(0);
+      paymentAmountController.text = totalDue.toStringAsFixed(
+        totalDue.truncateToDouble() == totalDue ? 0 : 2,
+      );
     } else if (_paymentType == AppStrings.partialPayment) {
       final parsedAmount = double.tryParse(paymentAmountController.text.trim()) ?? 0.0;
       if (parsedAmount >= totalDue) {

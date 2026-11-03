@@ -6,6 +6,7 @@ import 'package:collection_agent/core/constants/app_colors.dart';
 import 'package:collection_agent/core/constants/app_strings.dart';
 import 'package:collection_agent/core/theme/app_text_styles.dart';
 import 'package:collection_agent/modules/room_management/viewmodel/room_management_viewmodel.dart';
+import 'package:collection_agent/modules/room_management/views/widgets/admin_filter_dropdown.dart';
 import 'package:collection_agent/modules/room_management/views/widgets/block_filter_dropdown.dart';
 import 'package:collection_agent/modules/room_management/views/widgets/block_header_widget.dart';
 import 'package:collection_agent/modules/room_management/views/widgets/collector_drawer_widget.dart';
@@ -133,18 +134,22 @@ class RoomManagementScreen extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 20),
-                // Search Bar and Block Filter Dropdown Row
+                const SizedBox(height: 18),
+                // Search Bar and Filter Controls (Two Rows: Search Bar on top, Admin & Block dropdowns below)
+                const RoomSearchBarWidget(),
+                const SizedBox(height: 10),
                 const Row(
                   children: [
                     Expanded(
-                      child: RoomSearchBarWidget(),
+                      child: AdminFilterDropdown(),
                     ),
                     SizedBox(width: 10),
-                    BlockFilterDropdown(),
+                    Expanded(
+                      child: BlockFilterDropdown(),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 // Block Header Section
                 const BlockHeaderWidget(),
                 const SizedBox(height: 16),
@@ -176,8 +181,9 @@ class RoomManagementScreen extends StatelessWidget {
                             PaymentBottomSheet.show(context, vm);
                           },
                           onTenantTap: (TenantModel tenant) {
-                            context.read<RoomManagementViewModel>().selectTenantForDetails(tenant);
-                            CustomerDetailsBottomSheet.show(context, tenant);
+                            final vm = context.read<RoomManagementViewModel>();
+                            vm.selectTenantForDetails(tenant);
+                            CustomerDetailsBottomSheet.show(context, tenant, vm);
                           },
                         );
                       }).toList(),

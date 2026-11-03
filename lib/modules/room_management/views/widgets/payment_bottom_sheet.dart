@@ -32,7 +32,9 @@ class PaymentBottomSheet extends StatelessWidget {
     final activeBed = vm.activeBedForPayment;
     final roomNumber = vm.activeRoomNumberForPayment ?? '';
     final tenantName = activeBed?.tenant?.name ?? 'Tenant';
-    final amountDue = activeBed?.amountDue ?? 0.0;
+    final amountDue = (activeBed?.remainingAmount ?? 0.0) > 0
+        ? activeBed!.remainingAmount
+        : (activeBed?.amountDue ?? 0.0);
     final formattedDue = '${AppStrings.currencySymbol}${amountDue.toStringAsFixed(0).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
@@ -95,10 +97,14 @@ class PaymentBottomSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                AppStrings.amountDue,
+                activeBed != null && activeBed.paidAmount > 0
+                    ? AppStrings.remainingToPay
+                    : AppStrings.amountDue,
                 style: AppTextStyles.titleMedium.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: activeBed != null && activeBed.paidAmount > 0
+                      ? const Color(0xFFDC2626)
+                      : AppColors.textPrimary,
                   fontSize: 15,
                 ),
               ),
@@ -106,12 +112,74 @@ class PaymentBottomSheet extends StatelessWidget {
                 formattedDue,
                 style: AppTextStyles.titleMedium.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                  color: activeBed != null && activeBed.paidAmount > 0
+                      ? const Color(0xFFDC2626)
+                      : AppColors.textPrimary,
                   fontSize: 16,
                 ),
               ),
             ],
           ),
+          if (activeBed != null && activeBed.paidAmount > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${AppStrings.totalRentPrefix}${AppStrings.currencySymbol}${activeBed.totalAmount.toStringAsFixed(0)}',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  '${AppStrings.alreadyPaidPrefix}${AppStrings.currencySymbol}${activeBed.paidAmount.toStringAsFixed(0)}',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.success,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (activeBed?.tenant?.hasLastMonthPending == true) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDBA74), width: 0.8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Color(0xFFEA580C)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        text: '${AppStrings.includesLastMonthDuePrefix}${AppStrings.currencySymbol}${activeBed!.tenant!.lastMonthPendingAmount.toStringAsFixed(0)}',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: const Color(0xFF9A3412),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                        children: [
+                          if (activeBed.tenant!.lastMonthCycle.isNotEmpty)
+                            TextSpan(
+                              text: ' (${activeBed.tenant!.lastMonthCycle})',
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
 
           // Field 1: Full / Partial Payment Dropdown

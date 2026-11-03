@@ -28,7 +28,7 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   late final Dio _dio;
-  String? _tenantId = '0eb298b6-0e52-434c-878e-b369839e9720';
+  String? _tenantId;
 
   String get baseUrl => _dio.options.baseUrl;
   String? get tenantId => _tenantId;
@@ -42,8 +42,8 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.defaultBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
         contentType: 'application/json',
         responseType: ResponseType.json,
         headers: const {
@@ -56,7 +56,7 @@ class ApiClient {
     _dio.interceptors.add(
       QueuedInterceptorsWrapper(
         onRequest: (options, handler) async {
-          // 1. Inject Tenant ID header
+          // 1. Inject Tenant ID header if available
           final storedTenantId = await SecureStorage.instance.read(keyTenantId);
           final activeTenantId = storedTenantId ?? _tenantId;
           if (activeTenantId != null && activeTenantId.isNotEmpty) {
@@ -98,8 +98,16 @@ class ApiClient {
     _dio.options.baseUrl = cleanUrl;
   }
 
-  void setTenantId(String tenantId) {
+  void setTenantId(String? tenantId) {
     _tenantId = tenantId;
+  }
+
+  /// Clears stored credentials and memory session
+  Future<void> clearAuth() async {
+    _tenantId = null;
+    await SecureStorage.instance.delete(keyToken);
+    await SecureStorage.instance.delete(keyTenantId);
+    await SecureStorage.instance.delete(keyCollectorProfile);
   }
 
   /// Performs GET request via Dio
