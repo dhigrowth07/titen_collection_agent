@@ -189,9 +189,10 @@ class RoomManagementViewModel extends ChangeNotifier {
     if (_paymentType == type) return;
     _paymentType = type;
     if (type == AppStrings.fullPayment && _activeBedForPayment != null) {
-      final effectiveDue = _activeBedForPayment!.remainingAmount > 0
+      final rawDue = _activeBedForPayment!.remainingAmount > 0
           ? _activeBedForPayment!.remainingAmount
           : _activeBedForPayment!.amountDue;
+      final effectiveDue = double.parse(rawDue.toStringAsFixed(2));
       paymentAmountController.text = effectiveDue.toStringAsFixed(
         effectiveDue.truncateToDouble() == effectiveDue ? 0 : 2,
       );
@@ -262,9 +263,15 @@ class RoomManagementViewModel extends ChangeNotifier {
       return false;
     }
 
-    final totalDue = _activeBedForPayment!.remainingAmount > 0
+    final rawDue = _activeBedForPayment!.remainingAmount > 0
         ? _activeBedForPayment!.remainingAmount
         : _activeBedForPayment!.amountDue;
+    final totalDue = double.parse(rawDue.toStringAsFixed(2));
+
+    if (totalDue <= 0) {
+      AppToast.error('No pending due for this tenant');
+      return false;
+    }
 
     if (_paymentType == AppStrings.fullPayment) {
       paymentAmountController.text = totalDue.toStringAsFixed(
@@ -272,22 +279,30 @@ class RoomManagementViewModel extends ChangeNotifier {
       );
     } else if (_paymentType == AppStrings.partialPayment) {
       final parsedAmount = double.tryParse(paymentAmountController.text.trim()) ?? 0.0;
-      if (parsedAmount >= totalDue) {
+      final normalizedParsed = double.parse(parsedAmount.toStringAsFixed(2));
+      if (normalizedParsed >= totalDue &&
+          normalizedParsed >= rawDue.roundToDouble()) {
         AppToast.error(AppStrings.partialPaymentMustBeLessThanDue);
         return false;
       }
     }
 
-    final validationError = Validators.validateAmount(
-      paymentAmountController.text,
-      totalDue,
-    );
-    if (validationError != null) {
-      AppToast.error(validationError);
-      return false;
+    // Validate partial payments or user-typed amounts.
+    // Full payment is strictly synchronized to totalDue and cannot exceed due.
+    if (_paymentType != AppStrings.fullPayment) {
+      final validationError = Validators.validateAmount(
+        paymentAmountController.text,
+        totalDue,
+      );
+      if (validationError != null) {
+        AppToast.error(validationError);
+        return false;
+      }
     }
 
-    final amountToPay = double.parse(paymentAmountController.text.trim());
+    final amountToPay = _paymentType == AppStrings.fullPayment
+        ? totalDue
+        : double.parse(paymentAmountController.text.trim());
     final tenant = _activeBedForPayment!.tenant;
 
     _isSubmittingPayment = true;

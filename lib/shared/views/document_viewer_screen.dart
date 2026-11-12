@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:pdfx/pdfx.dart';
@@ -29,30 +29,58 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   String _errorMessage = '';
 
   // PDF state
-  PdfControllerPinch? _pdfController;
+  PdfDocument? _pdfDocument;
+  PdfControllerPinch? _pdfPinchController;
+  PdfController? _pdfSimpleController;
   bool _isLoadingPdf = false;
   int _pageCount = 0;
-  int _currentPage = 1;
 
-  bool get _isPdf => widget.url.toLowerCase().contains('.pdf');
+  bool get _isWindows => defaultTargetPlatform == TargetPlatform.windows;
+
+  String get _cleanPath {
+    final trimmed = widget.url.trim();
+    if (trimmed.isEmpty) return '';
+    try {
+      final uri = Uri.parse(trimmed);
+      return uri.path.toLowerCase();
+    } catch (_) {
+      return trimmed.split('?').first.split('#').first.toLowerCase();
+    }
+  }
+
+  bool get _isPdf => _cleanPath.endsWith('.pdf');
 
   bool get _isImage {
-    final lower = widget.url.toLowerCase();
-    return lower.contains('.png') ||
-        lower.contains('.jpg') ||
-        lower.contains('.jpeg') ||
-        lower.contains('.webp');
+    final p = _cleanPath;
+    return p.endsWith('.png') ||
+        p.endsWith('.jpg') ||
+        p.endsWith('.jpeg') ||
+        p.endsWith('.webp') ||
+        p.endsWith('.gif') ||
+        p.endsWith('.bmp');
   }
 
   @override
   void initState() {
     super.initState();
     if (_isPdf) {
+      _isLoadingPdf = true;
       _loadPdf();
     }
   }
 
   Future<void> _loadPdf() async {
+    if (widget.url.trim().isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isLoadingPdf = false;
+          _hasError = true;
+          _errorMessage = 'Invalid or empty document URL';
+        });
+      }
+      return;
+    }
+
     setState(() {
       _isLoadingPdf = true;
       _hasError = false;
@@ -60,15 +88,38 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     });
 
     try {
-      final response = await Dio().get<List<int>>(
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+      final response = await dio.get<List<int>>(
         widget.url,
         options: Options(responseType: ResponseType.bytes),
       );
 
-      if (response.data != null) {
+      if (!mounted) return;
+
+      if (response.data != null && response.data!.isNotEmpty) {
         final doc = await PdfDocument.openData(Uint8List.fromList(response.data!));
-        _pdfController?.dispose();
-        _pdfController = PdfControllerPinch(document: Future.value(doc));
+        if (!mounted) {
+          doc.close();
+          return;
+        }
+
+        _pdfPinchController?.dispose();
+        _pdfSimpleController?.dispose();
+        _pdfDocument?.close();
+        _pdfDocument = doc;
+
+        if (_isWindows) {
+          _pdfSimpleController = PdfController(document: Future.value(doc));
+        } else {
+          _pdfPinchController = PdfControllerPinch(document: Future.value(doc));
+        }
+
         if (mounted) {
           setState(() {
             _pageCount = doc.pagesCount;
@@ -83,13 +134,27 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         setState(() {
           _isLoadingPdf = false;
           _hasError = true;
-          _errorMessage = 'Failed to load PDF document. Please check your connection.';
+          if (e is DioException) {
+            if (e.response?.statusCode == 403) {
+              _errorMessage = 'Access denied or document link has expired.';
+            } else if (e.response?.statusCode == 404) {
+              _errorMessage = 'Document not found on the server.';
+            } else if (e.type == DioExceptionType.connectionTimeout ||
+                e.type == DioExceptionType.receiveTimeout) {
+              _errorMessage = 'Connection timed out while loading the document.';
+            } else {
+              _errorMessage = 'Network error while loading document.';
+            }
+          } else {
+            _errorMessage = 'Failed to load PDF document. Please check your connection.';
+          }
         });
       }
     }
   }
 
   void _reload() {
+    PaintingBinding.instance.imageCache.evict(NetworkImage(widget.url));
     if (_isPdf) {
       _loadPdf();
     } else {
@@ -103,7 +168,9 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
 
   @override
   void dispose() {
-    _pdfController?.dispose();
+    _pdfPinchController?.dispose();
+    _pdfSimpleController?.dispose();
+    _pdfDocument?.close();
     super.dispose();
   }
 
@@ -160,8 +227,12 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   }
 
   Widget _buildDocumentContent() {
+    if (widget.url.trim().isEmpty) {
+      return _buildErrorView(errorText: 'No document URL provided');
+    }
+
     if (_isPdf) {
-      if (_isLoadingPdf) {
+      if (_isLoadingPdf || (_pdfPinchController == null && _pdfSimpleController == null)) {
         return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -172,7 +243,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Loading PDF pages...',
+                'Loading PDF document...',
                 style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
               ),
             ],
@@ -180,47 +251,85 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         );
       }
 
-      if (_pdfController != null) {
+      if (_isWindows && _pdfSimpleController != null) {
         return Stack(
           alignment: Alignment.bottomCenter,
           children: [
-            PdfViewPinch(
-              controller: _pdfController!,
-              onPageChanged: (page) {
-                if (mounted) {
-                  setState(() => _currentPage = page);
-                }
-              },
+            PdfView(
+              controller: _pdfSimpleController!,
             ),
             if (_pageCount > 0)
               Positioned(
                 bottom: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xCC0F172A),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white24, width: 0.8),
-                  ),
-                  child: Text(
-                    'Page $_currentPage of $_pageCount',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _pdfSimpleController!.pageListenable,
+                  builder: (context, page, _) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xCC0F172A),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24, width: 0.8),
+                      ),
+                      child: Text(
+                        'Page $page of $_pageCount',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
           ],
         );
       }
+
+      if (_pdfPinchController != null) {
+        return Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            PdfViewPinch(
+              controller: _pdfPinchController!,
+            ),
+            if (_pageCount > 0)
+              Positioned(
+                bottom: 16,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _pdfPinchController!.pageListenable,
+                  builder: (context, page, _) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xCC0F172A),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24, width: 0.8),
+                      ),
+                      child: Text(
+                        'Page $page of $_pageCount',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      }
+
+      return _buildErrorView(errorText: 'Failed to initialize PDF renderer');
     }
 
     if (_isImage) {
       return Center(
         child: InteractiveViewer(
-          minScale: 0.5,
+          minScale: 0.8,
           maxScale: 4.0,
           child: Image.network(
             widget.url,
@@ -235,7 +344,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircularProgressIndicator(
-                      value: total != null ? loaded / total : null,
+                      value: total != null && total > 0 ? loaded / total : null,
                       color: AppColors.primary,
                       strokeWidth: 3,
                     ),
@@ -259,7 +368,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
     // Default fallback: Try loading as image with zoom
     return Center(
       child: InteractiveViewer(
-        minScale: 0.5,
+        minScale: 0.8,
         maxScale: 4.0,
         child: Image.network(
           widget.url,

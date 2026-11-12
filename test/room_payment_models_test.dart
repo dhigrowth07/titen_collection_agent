@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:collection_agent/core/utils/validators.dart';
 import 'package:collection_agent/shared/models/bed_model.dart';
 import 'package:collection_agent/shared/models/room_model.dart';
 import 'package:collection_agent/shared/models/tenant_model.dart';
@@ -520,6 +521,91 @@ void main() {
       // Must be 9,677.42 (NOT 19,355)
       expect(bed.remainingAmount, 9677.42);
       expect(bed.amountDue, 9677.42);
+    });
+
+    test('Scenario 14: Partial Payment maintains full totalRent in customer details model', () {
+      // Tenant has monthly rent of ₹10,000, pays ₹4,000 partially, leaving balance of ₹6,000
+      final json = {
+        'id': '45',
+        'name': 'Loki',
+        'amount_due': 6000.0,
+        'rent_paid_amount': 4000.0,
+        'balance_payable': 6000.0,
+        'total_amount': 10000.0,
+        'last_month_pending_amount': 0.0,
+        'total_outstanding_due': 6000.0,
+        'payment_status': 'due',
+      };
+
+      final tenant = TenantModel.fromJson(json);
+
+      // Verify that Current Month Rent displays totalRent (10,000), not dueAmount (6,000)
+      expect(tenant.totalRent, 10000.0);
+      expect(tenant.dueAmount, 6000.0);
+      expect(tenant.rentPaidAmount, 4000.0);
+      expect(tenant.combinedOutstandingDue, 6000.0);
+    });
+
+    test('Scenario 15: Full Payment of remaining ₹6,000 settles bed and passes validation without excess error', () {
+      final json = {
+        'id': '45',
+        'name': 'Loki',
+        'amount_due': 6000.0,
+        'rent_paid_amount': 4000.0,
+        'balance_payable': 6000.0,
+        'total_amount': 10000.0,
+        'last_month_pending_amount': 0.0,
+        'total_outstanding_due': 6000.0,
+        'payment_status': 'due',
+      };
+
+      final tenant = TenantModel.fromJson(json);
+      final bed = BedModel(
+        id: 'bed-45',
+        bedNumber: 1,
+        tenant: tenant,
+        amountDue: tenant.dueAmount,
+        isPaid: tenant.isPaid,
+      );
+
+      final totalDue = bed.remainingAmount > 0 ? bed.remainingAmount : bed.amountDue;
+      expect(totalDue, 6000.0);
+
+      // Paying full 6000 must NOT throw paymentExceedsDue
+      final fullPaymentStr = totalDue.toStringAsFixed(totalDue.truncateToDouble() == totalDue ? 0 : 2);
+      expect(fullPaymentStr, '6000');
+      expect(Validators.validateAmount(fullPaymentStr, totalDue), isNull);
+    });
+
+    test('Scenario 16: Tenant with current month balance 0 but last month pending 6000 is NOT isPaid', () {
+      final json = {
+        'id': '46',
+        'name': 'Pending Last Month Tenant',
+        'amount_due': 0.0,
+        'rent_paid_amount': 6000.0,
+        'balance_payable': 0.0,
+        'total_amount': 6000.0,
+        'last_month_pending_amount': 6000.0,
+        'last_month_cycle': 'Oct 2026',
+        'total_outstanding_due': 6000.0,
+        'payment_status': 'due',
+      };
+
+      final tenant = TenantModel.fromJson(json);
+      expect(tenant.isPaid, false);
+      expect(tenant.hasLastMonthPending, true);
+      expect(tenant.lastMonthPendingAmount, 6000.0);
+      expect(tenant.combinedOutstandingDue, 6000.0);
+
+      final bed = BedModel(
+        id: 'bed-46',
+        bedNumber: 1,
+        tenant: tenant,
+        amountDue: tenant.combinedOutstandingDue,
+        isPaid: tenant.isPaid,
+      );
+      expect(bed.isPaid, false);
+      expect(bed.remainingAmount, 6000.0);
     });
   });
 }

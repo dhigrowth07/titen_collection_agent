@@ -56,6 +56,13 @@ void main() {
       expect(Validators.validateAmount('6000', 5999.995), isNull);
     });
 
+    test('Full payment with rounded integer due (e.g. fractional paisa prorated rent) returns null', () {
+      // Due displaying as 6000 in UI when internal value is 5999.50 or 5999.90
+      expect(Validators.validateAmount('6000', 5999.50), isNull);
+      expect(Validators.validateAmount('6000', 5999.90), isNull);
+      expect(Validators.validateAmount('8065', 8064.52), isNull);
+    });
+
     test('Valid partial payment strictly less than due returns null', () {
       expect(Validators.validateAmount('2000', 6000.0), isNull);
       expect(Validators.validateAmount('3500.50', 4000.0), isNull);

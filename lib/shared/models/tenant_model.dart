@@ -120,8 +120,8 @@ class TenantModel {
   });
 
   bool get isPaid =>
-      paymentStatus.toLowerCase() == 'paid' ||
-      (paymentId != null && rentPaidAmount > 0 && balancePayable <= 0);
+      (paymentStatus.toLowerCase() == 'paid' && lastMonthPendingAmount <= 0) ||
+      (paymentId != null && rentPaidAmount > 0 && balancePayable <= 0 && lastMonthPendingAmount <= 0);
 
   bool get isOverdue =>
       paymentStatus.toLowerCase() == 'overdue' ||

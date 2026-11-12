@@ -32,10 +32,11 @@ class PaymentBottomSheet extends StatelessWidget {
     final activeBed = vm.activeBedForPayment;
     final roomNumber = vm.activeRoomNumberForPayment ?? '';
     final tenantName = activeBed?.tenant?.name ?? 'Tenant';
-    final amountDue = (activeBed?.remainingAmount ?? 0.0) > 0
+    final rawDue = (activeBed?.remainingAmount ?? 0.0) > 0
         ? activeBed!.remainingAmount
         : (activeBed?.amountDue ?? 0.0);
-    final formattedDue = '${AppStrings.currencySymbol}${amountDue.toStringAsFixed(0).replaceAllMapped(
+    final amountDue = double.parse(rawDue.toStringAsFixed(2));
+    final formattedDue = '${AppStrings.currencySymbol}${amountDue.toStringAsFixed(amountDue.truncateToDouble() == amountDue ? 0 : 2).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
         )}';
@@ -338,9 +339,9 @@ class PaymentBottomSheet extends StatelessWidget {
                 child: TextFormField(
                   controller: vm.paymentAmountController,
                  readOnly: isLocked,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                   ],
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,

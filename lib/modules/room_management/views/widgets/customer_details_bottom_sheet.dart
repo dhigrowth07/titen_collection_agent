@@ -438,6 +438,8 @@ class CustomerDetailsBottomSheet extends StatelessWidget {
     final lastMonthAmt = t.lastMonthPendingAmount;
     final currentDue = t.dueAmount;
     final totalDue = t.combinedOutstandingDue;
+    final totalRent = t.totalRent;
+    final rentPaid = t.rentPaidAmount;
     final cycles = t.recentCycles;
 
     return Container(
@@ -617,13 +619,28 @@ class CustomerDetailsBottomSheet extends StatelessWidget {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              currentDue > 0 ? _formatCurrency(currentDue) : 'Settled',
+                              totalRent > 0
+                                  ? _formatCurrency(totalRent)
+                                  : (currentDue > 0 ? _formatCurrency(currentDue) : 'Settled'),
                               style: AppTextStyles.titleSmall.copyWith(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: currentDue > 0 ? AppColors.textPrimary : AppColors.success,
+                                color: AppColors.textPrimary,
                               ),
                             ),
+                            if (rentPaid > 0) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                currentDue > 0
+                                    ? 'Paid: ${_formatCurrency(rentPaid)} (Due: ${_formatCurrency(currentDue)})'
+                                    : 'Paid in Full',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: currentDue > 0 ? const Color(0xFFD97706) : AppColors.success,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
