@@ -120,12 +120,14 @@ class TenantModel {
   });
 
   bool get isPaid =>
-      (paymentStatus.toLowerCase() == 'paid' && lastMonthPendingAmount <= 0) ||
-      (paymentId != null && rentPaidAmount > 0 && balancePayable <= 0 && lastMonthPendingAmount <= 0);
+      totalOutstandingDue <= 0 &&
+      ((paymentStatus.toLowerCase() == 'paid' && lastMonthPendingAmount <= 0) ||
+       (paymentId != null && rentPaidAmount > 0 && balancePayable <= 0 && lastMonthPendingAmount <= 0));
 
   bool get isOverdue =>
-      paymentStatus.toLowerCase() == 'overdue' ||
-      (!isPaid && dueDate.isNotEmpty && _isPastDueDate(dueDate));
+      !isPaid &&
+      (paymentStatus.toLowerCase() == 'overdue' ||
+       (dueDate.isNotEmpty && _isPastDueDate(dueDate)));
 
   bool get isDue => !isPaid && (paymentStatus.toLowerCase() == 'due' || balancePayable > 0 || amountDue > 0);
 
@@ -146,9 +148,14 @@ class TenantModel {
     return false;
   }
 
-  double get totalRent => totalRentAmount > 0
-      ? totalRentAmount
-      : ((balancePayable + rentPaidAmount) > 0 ? (balancePayable + rentPaidAmount) : amountDue);
+  double get totalRent {
+    if (isPaid && rentPaidAmount > 0) {
+      return rentPaidAmount;
+    }
+    return totalRentAmount > 0
+        ? totalRentAmount
+        : ((balancePayable + rentPaidAmount) > 0 ? (balancePayable + rentPaidAmount) : amountDue);
+  }
 
   double get dueAmount {
     if (isPaid) return 0.0;

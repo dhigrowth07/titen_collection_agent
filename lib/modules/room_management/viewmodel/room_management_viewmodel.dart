@@ -189,9 +189,11 @@ class RoomManagementViewModel extends ChangeNotifier {
     if (_paymentType == type) return;
     _paymentType = type;
     if (type == AppStrings.fullPayment && _activeBedForPayment != null) {
-      final rawDue = _activeBedForPayment!.remainingAmount > 0
-          ? _activeBedForPayment!.remainingAmount
-          : _activeBedForPayment!.amountDue;
+      final tenantDue = _activeBedForPayment!.tenant?.combinedOutstandingDue ?? 0.0;
+      final bedDue = _activeBedForPayment!.remainingAmount;
+      final rawDue = tenantDue > 0
+          ? tenantDue
+          : (bedDue > 0 ? bedDue : _activeBedForPayment!.amountDue);
       final effectiveDue = double.parse(rawDue.toStringAsFixed(2));
       paymentAmountController.text = effectiveDue.toStringAsFixed(
         effectiveDue.truncateToDouble() == effectiveDue ? 0 : 2,
@@ -263,9 +265,11 @@ class RoomManagementViewModel extends ChangeNotifier {
       return false;
     }
 
-    final rawDue = _activeBedForPayment!.remainingAmount > 0
-        ? _activeBedForPayment!.remainingAmount
-        : _activeBedForPayment!.amountDue;
+    final tenantDue = _activeBedForPayment!.tenant?.combinedOutstandingDue ?? 0.0;
+    final bedDue = _activeBedForPayment!.remainingAmount;
+    final rawDue = tenantDue > 0
+        ? tenantDue
+        : (bedDue > 0 ? bedDue : _activeBedForPayment!.amountDue);
     final totalDue = double.parse(rawDue.toStringAsFixed(2));
 
     if (totalDue <= 0) {

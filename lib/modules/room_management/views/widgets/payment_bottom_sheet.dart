@@ -32,9 +32,11 @@ class PaymentBottomSheet extends StatelessWidget {
     final activeBed = vm.activeBedForPayment;
     final roomNumber = vm.activeRoomNumberForPayment ?? '';
     final tenantName = activeBed?.tenant?.name ?? 'Tenant';
-    final rawDue = (activeBed?.remainingAmount ?? 0.0) > 0
-        ? activeBed!.remainingAmount
-        : (activeBed?.amountDue ?? 0.0);
+    final tenantDue = activeBed?.tenant?.combinedOutstandingDue ?? 0.0;
+    final bedDue = activeBed?.remainingAmount ?? 0.0;
+    final rawDue = tenantDue > 0
+        ? tenantDue
+        : (bedDue > 0 ? bedDue : (activeBed?.amountDue ?? 0.0));
     final amountDue = double.parse(rawDue.toStringAsFixed(2));
     final formattedDue = '${AppStrings.currencySymbol}${amountDue.toStringAsFixed(amountDue.truncateToDouble() == amountDue ? 0 : 2).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),

@@ -607,5 +607,116 @@ void main() {
       expect(bed.isPaid, false);
       expect(bed.remainingAmount, 6000.0);
     });
+
+    test('Scenario 17: Room change from 10k to 20k with 5k partial payment already paid', () {
+      final json = {
+        'id': '60',
+        'name': 'Room Changed Tenant',
+        'amount_due': 15000.0,
+        'rent_paid_amount': 5000.0,
+        'balance_payable': 15000.0,
+        'total_amount': 20000.0,
+        'last_month_pending_amount': 0.0,
+        'last_month_cycle': '',
+        'total_outstanding_due': 15000.0,
+        'payment_status': 'due',
+      };
+
+      final tenant = TenantModel.fromJson(json);
+      expect(tenant.isPaid, false);
+      expect(tenant.dueAmount, 15000.0);
+      expect(tenant.totalRent, 20000.0);
+      expect(tenant.rentPaidAmount, 5000.0);
+      expect(tenant.combinedOutstandingDue, 15000.0);
+
+      final bed = BedModel(
+        id: 'bed-60',
+        bedNumber: 1,
+        tenant: tenant,
+        amountDue: tenant.combinedOutstandingDue,
+        isPaid: tenant.isPaid,
+      );
+
+      expect(bed.isPaid, false);
+      expect(bed.totalAmount, 20000.0);
+      expect(bed.paidAmount, 5000.0);
+      expect(bed.remainingAmount, 15000.0);
+
+      final fullPaymentStr = bed.remainingAmount.toStringAsFixed(
+        bed.remainingAmount.truncateToDouble() == bed.remainingAmount ? 0 : 2,
+      );
+      expect(fullPaymentStr, '15000');
+      expect(Validators.validateAmount(fullPaymentStr, bed.remainingAmount), isNull);
+    });
+
+    test('Scenario 18: Room change where old record had payment_status paid but totalOutstandingDue is 15000', () {
+      final json = {
+        'id': '61',
+        'name': 'Edge Case Settled Flag Tenant',
+        'amount_due': 15000.0,
+        'rent_paid_amount': 5000.0,
+        'balance_payable': 15000.0,
+        'total_amount': 20000.0,
+        'last_month_pending_amount': 0.0,
+        'last_month_cycle': '',
+        'total_outstanding_due': 15000.0,
+        'payment_status': 'paid',
+      };
+
+      final tenant = TenantModel.fromJson(json);
+      expect(tenant.isPaid, false);
+      expect(tenant.dueAmount, 15000.0);
+      expect(tenant.combinedOutstandingDue, 15000.0);
+
+      final bed = BedModel.fromJson({
+        'id': 'bed-61',
+        'bedNumber': 1,
+        'tenant': json,
+        'amountDue': 15000.0,
+        'isPaid': false,
+      });
+
+      expect(bed.isPaid, false);
+      expect(bed.remainingAmount, 15000.0);
+    });
+
+    test('Scenario 19: Settled tenant after full payment (Gokilavani C fix)', () {
+      final json = {
+        'id': '3',
+        'name': 'Gokilavani C',
+        'payment_id': 2,
+        'amount_due': 0.0,
+        'rent_paid_amount': 8000.0,
+        'balance_payable': 0.0,
+        'total_amount': 8000.0,
+        'last_month_pending_amount': 0.0,
+        'last_month_cycle': '',
+        'total_outstanding_due': 0.0,
+        'payment_status': 'paid',
+        'due_date': '2026-11-05',
+      };
+
+      final tenant = TenantModel.fromJson(json);
+      expect(tenant.isPaid, true);
+      expect(tenant.isOverdue, false);
+      expect(tenant.isDue, false);
+      expect(tenant.dueAmount, 0.0);
+      expect(tenant.combinedOutstandingDue, 0.0);
+      expect(tenant.totalRent, 8000.0);
+      expect(tenant.rentPaidAmount, 8000.0);
+
+      final bed = BedModel(
+        id: 'bed-3',
+        bedNumber: 1,
+        tenant: tenant,
+        amountDue: tenant.dueAmount,
+        isPaid: tenant.isPaid,
+      );
+
+      expect(bed.isPaid, true);
+      expect(bed.remainingAmount, 0.0);
+      expect(bed.paidAmount, 8000.0);
+      expect(bed.totalAmount, 8000.0);
+    });
   });
 }
