@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:collection_agent/core/network/api_client.dart';
 import 'package:collection_agent/core/network/api_endpoints.dart';
 import 'package:collection_agent/core/storage/secure_storage.dart';
+import 'package:collection_agent/shared/models/admin_model.dart';
 import 'package:collection_agent/shared/models/bed_model.dart';
 import 'package:collection_agent/shared/models/block_model.dart';
 import 'package:collection_agent/shared/models/collector_model.dart';
@@ -96,6 +97,7 @@ class CollectorRepository {
   Future<DashboardData> getDashboard({
     String? search,
     int? blockId,
+    String? adminId,
   }) async {
     final queryParams = <String, dynamic>{};
     if (search != null && search.trim().isNotEmpty) {
@@ -103,6 +105,9 @@ class CollectorRepository {
     }
     if (blockId != null) {
       queryParams['block_id'] = blockId;
+    }
+    if (adminId != null && adminId != 'ALL' && adminId.trim().isNotEmpty) {
+      queryParams['admin_id'] = adminId.trim();
     }
 
     final response = await _client.get(
@@ -112,7 +117,12 @@ class CollectorRepository {
 
     final data = response['data'] as Map<String, dynamic>? ?? {};
     final metricsJson = data['metrics'] as Map<String, dynamic>? ?? {};
+    final rawAdmins = data['admins'] as List<dynamic>? ?? [];
     final rawBlocks = data['blocks'] as List<dynamic>? ?? [];
+
+    final admins = rawAdmins
+        .map((a) => AdminModel.fromJson(a as Map<String, dynamic>))
+        .toList();
 
     final blocks = <BlockModel>[];
     final allRooms = <RoomModel>[];
@@ -121,6 +131,8 @@ class CollectorRepository {
       final bMap = bJson as Map<String, dynamic>;
       final bId = bMap['block_id']?.toString() ?? '';
       final bName = bMap['block_name']?.toString() ?? 'Block';
+      final bAdminId = bMap['admin_id']?.toString();
+      final bAdminName = bMap['admin_name']?.toString();
       final roomsList = bMap['rooms'] as List<dynamic>? ?? [];
 
       int blockTotalBeds = 0;
@@ -130,6 +142,8 @@ class CollectorRepository {
         final rMap = rJson as Map<String, dynamic>;
         final rId = rMap['room_id']?.toString() ?? '';
         final rNumber = rMap['room_number']?.toString() ?? '';
+        final rAdminId = rMap['admin_id']?.toString() ?? bAdminId;
+        final rAdminName = rMap['admin_name']?.toString() ?? bAdminName;
         final capacity = (rMap['capacity'] as num?)?.toInt() ?? 2;
         final rawTenants = rMap['tenants'] as List<dynamic>? ?? [];
 
@@ -144,11 +158,17 @@ class CollectorRepository {
             'room_number': rNumber,
           });
 
+          final bedDue = tenant.isPaid
+              ? 0.0
+              : (tenant.combinedOutstandingDue > 0
+                  ? tenant.combinedOutstandingDue
+                  : tenant.dueAmount);
+
           beds.add(BedModel(
             id: 'bed-$rId-${i + 1}',
             bedNumber: i + 1,
             tenant: tenant,
-            amountDue: tenant.amountDue,
+            amountDue: bedDue,
             isPaid: tenant.isPaid,
           ));
         }
@@ -161,6 +181,8 @@ class CollectorRepository {
             id: rId,
             roomNumber: rNumber,
             blockId: bId,
+            adminId: rAdminId,
+            adminName: rAdminName,
             beds: beds,
           ));
         }
@@ -169,6 +191,8 @@ class CollectorRepository {
       blocks.add(BlockModel(
         id: bId,
         name: bName,
+        adminId: bAdminId,
+        adminName: bAdminName,
         totalRooms: roomsList.length,
         totalBeds: blockTotalBeds,
         occupiedBeds: blockOccupiedBeds,
@@ -178,6 +202,7 @@ class CollectorRepository {
     return DashboardData(
       totalRooms: (metricsJson['total_rooms'] as num?)?.toInt() ?? allRooms.length,
       todayCollected: double.tryParse(metricsJson['today_collected']?.toString() ?? '0') ?? 0.0,
+      admins: admins,
       blocks: blocks,
       rooms: allRooms,
     );
@@ -265,12 +290,14 @@ class CollectorRepository {
 class DashboardData {
   final int totalRooms;
   final double todayCollected;
+  final List<AdminModel> admins;
   final List<BlockModel> blocks;
   final List<RoomModel> rooms;
 
   const DashboardData({
     required this.totalRooms,
     required this.todayCollected,
+    this.admins = const [],
     required this.blocks,
     required this.rooms,
   });

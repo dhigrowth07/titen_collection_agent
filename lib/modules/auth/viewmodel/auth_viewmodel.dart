@@ -27,8 +27,10 @@ class AuthViewModel extends ChangeNotifier {
   CollectorModel? get authenticatedCollector => _authenticatedCollector;
 
   void updatePhoneNumber(String value) {
-    if (_phoneNumber == value) return;
-    _phoneNumber = value;
+    final cleaned = value.replaceAll(RegExp(r'\D'), '');
+    final truncated = cleaned.length > 10 ? cleaned.substring(0, 10) : cleaned;
+    if (_phoneNumber == truncated) return;
+    _phoneNumber = truncated;
     if (_errorMessage != null) {
       _errorMessage = null;
     }
@@ -51,7 +53,8 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> login() async {
-    final phoneError = Validators.validatePhone(_phoneNumber);
+    final cleanPhone = _phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final phoneError = Validators.validatePhone(cleanPhone);
     if (phoneError != null) {
       _errorMessage = phoneError;
       notifyListeners();
@@ -73,7 +76,7 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       final collector = await _repository.loginWithPasscode(
-        phone: _phoneNumber,
+        phone: cleanPhone,
         passcode: _passcode,
         tenantId: _tenantId.isNotEmpty ? _tenantId : null,
       );
@@ -99,7 +102,8 @@ class AuthViewModel extends ChangeNotifier {
     final cached = await _repository.getCachedCollector();
     if (cached != null) {
       _authenticatedCollector = cached;
-      _phoneNumber = cached.phone;
+      final digits = cached.phone.replaceAll(RegExp(r'\D'), '');
+      _phoneNumber = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
       notifyListeners();
     }
   }

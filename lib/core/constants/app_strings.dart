@@ -18,7 +18,7 @@ class AppStrings {
   static const String passcodePlaceholder = '1234';
   static const String logInButton = 'Log In';
   static const String phoneRequiredError = 'Please enter your phone number';
-  static const String phoneInvalidError = 'Please enter a valid phone number';
+  static const String phoneInvalidError = 'Please enter a valid 10-digit mobile number';
   static const String passcodeRequiredError = 'Please enter your 4-digit passcode';
   static const String passcodeInvalidError = 'Passcode must be 4 digits';
   static const String tenantIdRequiredError = 'Tenant ID is required';
@@ -27,6 +27,7 @@ class AppStrings {
   static const String totalRooms = 'Total Rooms';
   static const String totalBeds = 'Total Beds';
   static const String todayCollected = "Today's Collection";
+  static const String allAdmins = 'All Admins';
   static const String allBlocks = 'All Blocks';
   static const String searchRoomsTenantsHint = 'Search by name, email, phone...';
   static const String pay = 'PAY';
@@ -38,6 +39,9 @@ class AppStrings {
 
   // Payment Bottom Sheet
   static const String amountDue = 'Amount Due';
+  static const String totalRentFullPayment = 'Total Rent (Full Payment)';
+  static const String alreadyPaid = 'Already Paid';
+  static const String remainingToPay = 'Remaining to Pay';
   static const String fullPartialPayment = 'Full / Partial Payment';
   static const String selectPayment = 'Select Payment';
   static const String fullPayment = 'Full Payment';
@@ -58,6 +62,12 @@ class AppStrings {
   static const String paymentInvalidAmount = 'Please enter a valid payment amount';
   static const String paymentExceedsDue = 'Amount cannot exceed amount due';
   static const String paymentSelectOptionError = 'Please select a payment option';
+  static const String fullPaymentAmountFixed = 'Amount cannot be edited for full payment';
+  static const String fullPaymentMustEqualDue = 'Full payment must equal total amount due';
+  static const String partialPaymentMustBeLessThanDue = 'Partial payment must be less than total amount due';
+  static const String selectPaymentFirst = 'Select payment type first';
+  static const String totalRentPrefix = 'Total Rent: ';
+  static const String alreadyPaidPrefix = 'Already Paid: ';
 
   // Tenant Details Bottom Sheet
   static const String customerDetailsPrefix = 'Customer Details : ';
@@ -75,6 +85,19 @@ class AppStrings {
   static const String labelStatus = 'Status';
   static const String statusActive = 'Active';
   static const String statusInactive = 'Inactive';
+  static const String viewDocument = 'View Document';
+  static const String documentViewer = 'Document Viewer';
+  static const String failedToLoadDocument = 'Failed to load document';
+  static const String retry = 'Retry';
+  static const String view = 'View';
+  static const String paymentProfile = 'Payment Profile';
+  static const String pendingLastMonthPayment = 'Pending Last Month Payment';
+  static const String currentMonthRent = 'Current Month Rent';
+  static const String totalOutstandingDue = 'Total Outstanding Due';
+  static const String cycleHistory = 'Cycle History';
+  static const String allPreviousCyclesSettled = 'All Previous Cycles Settled';
+  static const String lastMonthFee = 'Last Month Fee';
+  static const String includesLastMonthDuePrefix = 'Includes last month due: ';
 
   // Collection History Screen
   static const String collectionHistoryTitle = 'Collection History';

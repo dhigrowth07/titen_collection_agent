@@ -3,6 +3,7 @@ class CollectorModel {
   final int collectorId;
   final String adminId;
   final String? tenantId;
+  final String? tenantName;
   final String name;
   final String phone;
   final String? email;
@@ -14,6 +15,7 @@ class CollectorModel {
     required this.collectorId,
     required this.adminId,
     this.tenantId,
+    this.tenantName,
     required this.name,
     required this.phone,
     this.email,
@@ -36,6 +38,7 @@ class CollectorModel {
       collectorId: json['collector_id'] as int? ?? 0,
       adminId: json['admin_id'] as String? ?? '',
       tenantId: json['tenant_id'] as String?,
+      tenantName: json['tenant_name'] as String?,
       name: json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       email: json['email'] as String?,
@@ -50,6 +53,7 @@ class CollectorModel {
       'collector_id': collectorId,
       'admin_id': adminId,
       'tenant_id': tenantId,
+      'tenant_name': tenantName,
       'name': name,
       'phone': phone,
       'email': email,

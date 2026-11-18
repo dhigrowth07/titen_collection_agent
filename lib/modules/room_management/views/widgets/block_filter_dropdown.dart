@@ -35,7 +35,7 @@ class BlockFilterDropdown extends StatelessWidget {
             ];
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -44,16 +44,26 @@ class BlockFilterDropdown extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  selectedId == 'ALL'
-                      ? AppStrings.allBlocks
-                      : vm.blocks.firstWhere((b) => b.id == selectedId, orElse: () => vm.blocks.first).name,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w500,
+                const Icon(
+                  Icons.grid_view_rounded,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    selectedId == 'ALL'
+                        ? AppStrings.allBlocks
+                        : vm.blocks.firstWhere((b) => b.id == selectedId, orElse: () => vm.blocks.first).name,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 const Icon(
                   Icons.keyboard_arrow_down_rounded,
                   size: 18,

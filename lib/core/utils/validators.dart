@@ -9,7 +9,7 @@ class Validators {
       return AppStrings.phoneRequiredError;
     }
     final cleaned = value.replaceAll(RegExp(r'\D'), '');
-    if (cleaned.length < 10) {
+    if (cleaned.length != 10 || !RegExp(r'^[6-9]\d{9}$').hasMatch(cleaned)) {
       return AppStrings.phoneInvalidError;
     }
     return null;
@@ -23,7 +23,14 @@ class Validators {
     if (parsed == null || parsed <= 0) {
       return AppStrings.paymentInvalidAmount;
     }
-    if (parsed > amountDue) {
+    // Currency precision: normalize both parsed and due to 2 decimal places (paise)
+    final normalizedParsed = double.parse(parsed.toStringAsFixed(2));
+    final normalizedDue = double.parse(amountDue.toStringAsFixed(2));
+    // Also allow integer ceiling / rounding if amount has fractional paisa
+    final roundedDue = amountDue.roundToDouble();
+
+    if (normalizedParsed > (normalizedDue + 0.01) &&
+        normalizedParsed > (roundedDue + 0.01)) {
       return AppStrings.paymentExceedsDue;
     }
     return null;

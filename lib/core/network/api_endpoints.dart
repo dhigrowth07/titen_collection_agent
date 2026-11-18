@@ -14,12 +14,9 @@ class ApiEndpoints {
     if (kIsWeb) {
       return 'http://localhost:3000/api/v1/collector';
     }
-    if (kDebugMode) {
-      // Local development server fallback
-      return 'http://192.168.31.86:3000/api/v1/collector';
-    }
-    // Production release endpoint
-    return 'https://pg-admin-api.titanstay.com/api/v1/collector';
+    // Production API endpoint for Android & iOS mobile builds
+  return 'https://pg-admin-api.titanstay.com/api/v1/collector';
+  //return 'http://192.168.31.86:3000/api/v1/collector';
   }
 
   // Endpoints relative to base URL

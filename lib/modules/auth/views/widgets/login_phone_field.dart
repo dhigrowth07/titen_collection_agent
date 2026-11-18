@@ -27,14 +27,17 @@ class LoginPhoneField extends StatelessWidget {
         TextFormField(
           initialValue: context.read<AuthViewModel>().phoneNumber,
           keyboardType: TextInputType.phone,
+          maxLength: 10,
           inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[\d\s+]')),
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
           ],
           style: AppTextStyles.titleMedium.copyWith(
             color: AppColors.textSecondary,
             fontWeight: FontWeight.w500,
           ),
           decoration: const InputDecoration(
+            counterText: '',
             isDense: true,
             contentPadding: EdgeInsets.only(bottom: 8),
             enabledBorder: UnderlineInputBorder(
