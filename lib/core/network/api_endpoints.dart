@@ -5,6 +5,8 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   /// Default Titanstay Collector API Base URL
+  /// Can be overridden at build or run time via:
+  /// flutter run --dart-define=API_BASE_URL=http://...
   static String get defaultBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
@@ -12,7 +14,11 @@ class ApiEndpoints {
     if (kIsWeb) {
       return 'http://localhost:3000/api/v1/collector';
     }
-    // Production API endpoint for Android & iOS mobile builds
+    if (kDebugMode) {
+      // Local development server fallback
+      return 'http://192.168.31.86:3000/api/v1/collector';
+    }
+    // Production release endpoint
     return 'https://pg-admin-api.titanstay.com/api/v1/collector';
   }
 

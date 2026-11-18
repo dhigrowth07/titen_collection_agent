@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:get/get.dart' hide Response;
+import 'package:collection_agent/app/routes/app_routes.dart';
 import 'package:collection_agent/core/network/api_endpoints.dart';
 import 'package:collection_agent/core/storage/secure_storage.dart';
 import 'package:collection_agent/core/utils/logger.dart';
@@ -28,7 +30,7 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   late final Dio _dio;
-  String? _tenantId = '0eb298b6-0e52-434c-878e-b369839e9720';
+  String? _tenantId;
 
   String get baseUrl => _dio.options.baseUrl;
   String? get tenantId => _tenantId;
@@ -56,17 +58,20 @@ class ApiClient {
     _dio.interceptors.add(
       QueuedInterceptorsWrapper(
         onRequest: (options, handler) async {
-          // 1. Inject Tenant ID header
+          final requiresAuth = options.extra['requiresAuth'] as bool? ?? true;
+
+          // 1. Inject Tenant ID header (strictly for authenticated requests or explicit overrides)
           final storedTenantId = await SecureStorage.instance.read(keyTenantId);
           final activeTenantId = storedTenantId ?? _tenantId;
-          if (activeTenantId != null && activeTenantId.isNotEmpty) {
+          final shouldInjectTenant = requiresAuth || (options.extra['injectTenant'] as bool? ?? false);
+
+          if (shouldInjectTenant && activeTenantId != null && activeTenantId.isNotEmpty) {
             options.headers['tenant-id'] = activeTenantId;
             options.headers['tenant_id'] = activeTenantId;
             options.headers['x-tenant-id'] = activeTenantId;
           }
 
           // 2. Inject JWT Token if not explicitly bypassed
-          final requiresAuth = options.extra['requiresAuth'] as bool? ?? true;
           if (requiresAuth) {
             final token = await SecureStorage.instance.read(keyToken);
             if (token != null && token.isNotEmpty) {
@@ -85,8 +90,12 @@ class ApiClient {
           AppLogger.info('Dio [${response.statusCode}] <- ${response.requestOptions.path}');
           return handler.next(response);
         },
-        onError: (DioException error, handler) {
+        onError: (DioException error, handler) async {
           AppLogger.error('Dio Error [${error.response?.statusCode}]: ${error.message}');
+          if (error.response?.statusCode == 401) {
+            await clearSession();
+            Get.offAllNamed(AppRoutes.login);
+          }
           return handler.next(error);
         },
       ),
@@ -98,8 +107,15 @@ class ApiClient {
     _dio.options.baseUrl = cleanUrl;
   }
 
-  void setTenantId(String tenantId) {
+  void setTenantId(String? tenantId) {
     _tenantId = tenantId;
+  }
+
+  Future<void> clearSession() async {
+    _tenantId = null;
+    await SecureStorage.instance.delete(keyToken);
+    await SecureStorage.instance.delete(keyTenantId);
+    await SecureStorage.instance.delete(keyCollectorProfile);
   }
 
   /// Performs GET request via Dio

@@ -11,7 +11,11 @@ import 'package:collection_agent/modules/auth/viewmodel/auth_viewmodel.dart';
 
 /// Root App Widget using GetMaterialApp and ScreenUtilInit
 class NestPilotApp extends StatelessWidget {
-  const NestPilotApp({super.key});
+  final String initialRoute;
+  const NestPilotApp({
+    super.key,
+    this.initialRoute = AppRoutes.login,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +32,7 @@ class NestPilotApp extends StatelessWidget {
             title: AppStrings.appTitle,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
-            initialRoute: AppRoutes.login,
+            initialRoute: initialRoute,
             getPages: AppPages.routes,
           ),
         );

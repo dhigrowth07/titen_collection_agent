@@ -47,6 +47,14 @@ class CollectorRepository {
         {};
 
     final collector = CollectorModel.fromJson(collectorJson);
+
+    // Dynamically persist the resolved tenant ID from the backend response
+    final resolvedTenantId = collector.tenantId ?? response['tenant_id'] as String?;
+    if (resolvedTenantId != null && resolvedTenantId.isNotEmpty) {
+      _client.setTenantId(resolvedTenantId);
+      await SecureStorage.instance.write(ApiClient.keyTenantId, resolvedTenantId);
+    }
+
     await SecureStorage.instance.write(
       ApiClient.keyCollectorProfile,
       jsonEncode(collector.toJson()),
@@ -57,8 +65,7 @@ class CollectorRepository {
 
   /// Logout collector and clear session credentials
   Future<void> logout() async {
-    await SecureStorage.instance.delete(ApiClient.keyToken);
-    await SecureStorage.instance.delete(ApiClient.keyCollectorProfile);
+    await _client.clearSession();
   }
 
   /// Get cached collector profile from local storage
@@ -67,7 +74,11 @@ class CollectorRepository {
     if (raw != null && raw.isNotEmpty) {
       try {
         final Map<String, dynamic> json = jsonDecode(raw);
-        return CollectorModel.fromJson(json);
+        final collector = CollectorModel.fromJson(json);
+        if (collector.tenantId != null && collector.tenantId!.isNotEmpty) {
+          _client.setTenantId(collector.tenantId);
+        }
+        return collector;
       } catch (_) {
         return null;
       }
