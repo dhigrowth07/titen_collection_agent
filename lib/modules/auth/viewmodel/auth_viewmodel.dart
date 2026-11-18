@@ -78,7 +78,7 @@ class AuthViewModel extends ChangeNotifier {
       final collector = await _repository.loginWithPasscode(
         phone: cleanPhone,
         passcode: _passcode,
-        tenantId: _tenantId.trim().isEmpty ? null : _tenantId.trim(),
+        tenantId: _tenantId.isNotEmpty ? _tenantId : null,
       );
 
       _authenticatedCollector = collector;

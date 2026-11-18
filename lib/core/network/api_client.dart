@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:get/get.dart' hide Response;
+import 'package:collection_agent/app/routes/app_routes.dart';
 import 'package:collection_agent/core/network/api_endpoints.dart';
 import 'package:collection_agent/core/storage/secure_storage.dart';
 import 'package:collection_agent/core/utils/logger.dart';
@@ -56,17 +58,20 @@ class ApiClient {
     _dio.interceptors.add(
       QueuedInterceptorsWrapper(
         onRequest: (options, handler) async {
-          // 1. Inject Tenant ID header if available
+          final requiresAuth = options.extra['requiresAuth'] as bool? ?? true;
+
+          // 1. Inject Tenant ID header (strictly for authenticated requests or explicit overrides)
           final storedTenantId = await SecureStorage.instance.read(keyTenantId);
           final activeTenantId = storedTenantId ?? _tenantId;
-          if (activeTenantId != null && activeTenantId.isNotEmpty) {
+          final shouldInjectTenant = requiresAuth || (options.extra['injectTenant'] as bool? ?? false);
+
+          if (shouldInjectTenant && activeTenantId != null && activeTenantId.isNotEmpty) {
             options.headers['tenant-id'] = activeTenantId;
             options.headers['tenant_id'] = activeTenantId;
             options.headers['x-tenant-id'] = activeTenantId;
           }
 
           // 2. Inject JWT Token if not explicitly bypassed
-          final requiresAuth = options.extra['requiresAuth'] as bool? ?? true;
           if (requiresAuth) {
             final token = await SecureStorage.instance.read(keyToken);
             if (token != null && token.isNotEmpty) {
@@ -85,8 +90,12 @@ class ApiClient {
           AppLogger.info('Dio [${response.statusCode}] <- ${response.requestOptions.path}');
           return handler.next(response);
         },
-        onError: (DioException error, handler) {
+        onError: (DioException error, handler) async {
           AppLogger.error('Dio Error [${error.response?.statusCode}]: ${error.message}');
+          if (error.response?.statusCode == 401) {
+            await clearSession();
+            Get.offAllNamed(AppRoutes.login);
+          }
           return handler.next(error);
         },
       ),
@@ -102,8 +111,7 @@ class ApiClient {
     _tenantId = tenantId;
   }
 
-  /// Clears stored credentials and memory session
-  Future<void> clearAuth() async {
+  Future<void> clearSession() async {
     _tenantId = null;
     await SecureStorage.instance.delete(keyToken);
     await SecureStorage.instance.delete(keyTenantId);

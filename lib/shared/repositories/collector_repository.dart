@@ -47,20 +47,14 @@ class CollectorRepository {
         response['data'] as Map<String, dynamic>? ??
         {};
 
-    final resolvedTenantId = response['tenant_id'] as String? ??
-        collectorJson['tenant_id'] as String?;
+    final collector = CollectorModel.fromJson(collectorJson);
+
+    // Dynamically persist the resolved tenant ID from the backend response
+    final resolvedTenantId = collector.tenantId ?? response['tenant_id'] as String?;
     if (resolvedTenantId != null && resolvedTenantId.isNotEmpty) {
       _client.setTenantId(resolvedTenantId);
       await SecureStorage.instance.write(ApiClient.keyTenantId, resolvedTenantId);
     }
-
-    final resolvedTenantName = response['tenant_name'] as String? ??
-        collectorJson['tenant_name'] as String?;
-
-    final Map<String, dynamic> mergedData = Map<String, dynamic>.from(collectorJson);
-    if (resolvedTenantId != null) mergedData['tenant_id'] = resolvedTenantId;
-    if (resolvedTenantName != null) mergedData['tenant_name'] = resolvedTenantName;
-    final collector = CollectorModel.fromJson(mergedData);
 
     await SecureStorage.instance.write(
       ApiClient.keyCollectorProfile,
@@ -72,7 +66,7 @@ class CollectorRepository {
 
   /// Logout collector and clear session credentials
   Future<void> logout() async {
-    await _client.clearAuth();
+    await _client.clearSession();
   }
 
   /// Get cached collector profile from local storage
@@ -81,7 +75,11 @@ class CollectorRepository {
     if (raw != null && raw.isNotEmpty) {
       try {
         final Map<String, dynamic> json = jsonDecode(raw);
-        return CollectorModel.fromJson(json);
+        final collector = CollectorModel.fromJson(json);
+        if (collector.tenantId != null && collector.tenantId!.isNotEmpty) {
+          _client.setTenantId(collector.tenantId);
+        }
+        return collector;
       } catch (_) {
         return null;
       }

@@ -5,6 +5,8 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   /// Default Titanstay Collector API Base URL
+  /// Can be overridden at build or run time via:
+  /// flutter run --dart-define=API_BASE_URL=http://...
   static String get defaultBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
